@@ -1,0 +1,25 @@
+python-dotenv>=1.0.0
+
+# Requis pour le connecteur AvaTrade (BROKER_MODE=avatrade dans .env)
+metaapi-cloud-sdk>=27.0.0
+
+# Requis pour le backtesting (backtesting/data_loader.py)
+yfinance>=0.2.40
+
+# Connecteurs de marché additionnels (décommente selon tes besoins)
+# ccxt>=4.3.0                # crypto (Binance, Kraken, etc.)
+# oandapyV20>=0.7.2          # forex via OANDA
+# alpaca-py>=0.30.0          # actions/CFD via Alpaca
+# MetaTrader5>=5.0.45        # forex via MT5 (Windows uniquement)
+
+# Analyse de news / calendrier macro
+# finnhub-python>=2.4.0
+
+# Stockage & dashboard (optionnel, pour la suite)
+# asyncpg>=0.29.0
+# fastapi>=0.111.0
+# uvicorn>=0.30.0
+
+# Analyse technique
+# pandas>=2.2.0
+# numpy>=1.26.0

@@ -1,0 +1,27 @@
+[
+  {
+    "hypothesis": {
+      "id": "PAIRS-COINT-BTC-ETH-001",
+      "nom": "Arbitrage de paires cointégrées BTC/ETH (retour à la moyenne du spread)",
+      "raison": "BTC et ETH partagent un flux d'ordres et une base d'investisseurs largement commune (corrélation historique >0.85), ce qui les rend structurellement cointégrés à moyen terme: leur ratio de prix oscille autour d'un équilibre de long terme. Des chocs de liquidité asymétriques (liquidations en cascade sur un seul des deux actifs, rotation sectorielle, actualité spécifique à un projet) créent des écarts temporaires à cet équilibre, qui se résorbent mécaniquement une fois la pression de flux dissipée — car aucun changement fondamental durable ne justifie une désynchronisation permanente entre les deux plus grandes cryptomonnaies liquides. C'est un edge de retour à la moyenne, pas une prédiction directionnelle.",
+      "prediction": "Après un écart statistiquement significatif entre le prix et sa moyenne mobile (mesuré ici, en simplification pédagogique, via la confluence Bollinger+RSI+ADX sur BTC/USDT plutôt que sur le spread BTC/ETH), le prix devrait revenir vers sa moyenne dans un horizon de quelques heures à quelques jours, générant un profit factor > 1 net des coûts de transaction.",
+      "criteres_echec": {
+        "profit_factor_min": 1.1,
+        "win_rate_min": 38.0,
+        "max_drawdown_max": 15.0,
+        "coherence_min": 60.0,
+        "max_degradation_pct": 50.0
+      },
+      "donnees_test": "20% les plus récentes de 60 jours de bougies 5min BTC/USDT (split chronologique, aucun mélange)",
+      "date_creation": "2026-07-27T10:26:00.445992+00:00",
+      "statut": "REJETEE"
+    },
+    "raison_rejet": "Échec du stage 'in_sample': Aucun signal en in-sample (profit_factor=0.84 <= 1.0) — inutile de continuer, il n'y a rien à valider.",
+    "metriques_finales": {
+      "profit_factor": 0.835,
+      "return_pct": -1.98,
+      "trades": 359
+    },
+    "date_enterrement": "2026-07-27T10:30:39.514652+00:00"
+  }
+]
