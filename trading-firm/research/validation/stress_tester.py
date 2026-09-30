@@ -70,8 +70,20 @@ class StressTestReport:
 
 
 class StressTester:
-    def __init__(self, max_drawdown_threshold_pct: float = DEFAULT_MAX_DRAWDOWN_THRESHOLD_PCT) -> None:
+    def __init__(
+        self, max_drawdown_threshold_pct: float = DEFAULT_MAX_DRAWDOWN_THRESHOLD_PCT,
+        engine_class: type | None = None, strategy_params: dict | None = None,
+    ) -> None:
         self.max_drawdown_threshold_pct = max_drawdown_threshold_pct
+        # Permet de stress-tester n'importe quel moteur partageant la même
+        # convention de constructeur (config, starting_capital, spread_cost_pct,
+        # **params_stratégie) — ex. MomentumBacktestEngine. BacktestEngine par
+        # défaut pour ne rien changer au comportement existant.
+        self.engine_class = engine_class or BacktestEngine
+        # Paramètres spécifiques à la stratégie (ex. {"rr": 1.0} pour Turtle
+        # Soup) — sans ça, le moteur reconstruit ici retomberait sur SES
+        # PROPRES défauts plutôt que sur la config réelle de l'hypothèse testée.
+        self.strategy_params = strategy_params or {}
 
     # --- Scénarios: chacun transforme une price_series en une version stressée ---
 
@@ -236,7 +248,7 @@ class StressTester:
         spread_cost_pct multiplié — simule un moment de faible liquidité où
         les spreads explosent (typique des news ou des ouvertures de
         session)."""
-        engine = BacktestEngine(risk_config, starting_capital, spread_cost_pct * multiplier)
+        engine = self.engine_class(risk_config, starting_capital, spread_cost_pct * multiplier, **self.strategy_params)
         return engine.run(price_series)
 
     # --- Orchestration ---
@@ -245,7 +257,7 @@ class StressTester:
         self, base_price_series: dict[str, list[dict]], risk_config: RiskConfig,
         starting_capital: float = 10_000.0, spread_cost_pct: float = 0.0002,
     ) -> StressTestReport:
-        engine = BacktestEngine(risk_config, starting_capital, spread_cost_pct)
+        engine = self.engine_class(risk_config, starting_capital, spread_cost_pct, **self.strategy_params)
         baseline = self._to_scenario_result("baseline", engine.run(base_price_series), starting_capital)
 
         scenarios = [

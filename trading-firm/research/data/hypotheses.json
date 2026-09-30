@@ -14,5 +14,105 @@
     "donnees_test": "20% les plus récentes de 60 jours de bougies 5min BTC/USDT (split chronologique, aucun mélange)",
     "date_creation": "2026-07-27T10:26:00.445992+00:00",
     "statut": "REJETEE"
+  },
+  {
+    "id": "gold_hourly_flow_bias",
+    "nom": "Biais directionnel horaire sur l'or (flux forcés fix + ouverture Londres)",
+    "raison": "L'or subit des flux institutionnels forcés à heures quasi fixes (London fix 10h30/15h, ouverture de Londres). Ces acteurs tradent par obligation contractuelle sans optimiser le prix, ce qui peut créer une pression directionnelle récurrente sur une fenêtre horaire précise.",
+    "prediction": "Au moins une tranche horaire présente un rendement directionnel statistiquement non-aléatoire, stable entre fenêtres, persistant sur test set.",
+    "criteres_echec": {
+      "profit_factor_min": 1.2,
+      "coherence_min": 60.0,
+      "doit_persister_sur_test_set": true
+    },
+    "donnees_test": "20% les plus récents de l'historique GC=F, verrouillés",
+    "date_creation": "2026-07-27T20:35:07.205465+00:00",
+    "statut": "REJETEE"
+  },
+  {
+    "id": "gold_silver_cointegration",
+    "nom": "Cointégration or/argent (arbitrage de paires XAU/USD-XAG/USD)",
+    "raison": "L'or et l'argent partagent une base d'investisseurs et des moteurs macro largement communs (couverture inflation, valeur refuge, ratio or/argent suivi historiquement par les traders de métaux précieux), ce qui pourrait maintenir leur écart de prix ajusté (spread) autour d'un équilibre de long terme stationnaire, exploitable par un arbitrage de paires si l'écart s'élargit temporairement.",
+    "prediction": "Le spread or/argent (ajusté par un hedge ratio estimé par OLS) est stationnaire — cointégration confirmée par Engle-Granger ET ADF sur le train (p<0.05) — avec un retour à la moyenne assez rapide pour être tradable, et cette relation persiste hors échantillon.",
+    "criteres_echec": {
+      "eg_pvalue_max": 0.05,
+      "adf_pvalue_max": 0.05,
+      "max_beta_drift_pct": 30.0,
+      "max_half_life_days": 30.0,
+      "min_reversion_rate_20d_pct": 50.0
+    },
+    "donnees_test": "20% les plus récents de 2 ans de bougies journalières XAU/USD et XAG/USD, alignées sur dates communes, verrouillées après split",
+    "date_creation": "2026-07-27T21:11:12.311215+00:00",
+    "statut": "REJETEE"
+  },
+  {
+    "id": "eurgbp_daily_meanrev",
+    "nom": "Mean reversion Bollinger+RSI+ADX sur EUR/GBP daily",
+    "raison": "EUR/GBP est une paire à faible tendance (économies UK/zone euro très liées) où le prix oscille en range, terrain théoriquement favorable au mean reversion. Observé PF 1.16 avec spread en backtest simple.",
+    "prediction": "Si l'edge est réel, il doit persister sur données out-of-sample jamais regardées, et être cohérent sur la majorité des sous-périodes.",
+    "criteres_echec": {
+      "profit_factor_min": 1.2,
+      "coherence_min": 60.0,
+      "doit_persister_sur_test_set": true
+    },
+    "donnees_test": "20% les plus récents d'EUR/GBP daily, verrouillés",
+    "date_creation": "2026-08-23T12:08:55.835973+00:00",
+    "statut": "REJETEE"
+  },
+  {
+    "id": "gold_momentum_ma_cross",
+    "nom": "Momentum croisement MM 20/50 sur l'or daily",
+    "raison": "Les tendances de l'or persistent car les gros acteurs ajustent leurs positions lentement (pour ne pas impacter le prix) et les acteurs réagissent avec retard aux nouvelles macro (biais comportemental). Cette lenteur d'ajustement crée une persistance des tendances qu'un suivi de tendance peut capturer.",
+    "prediction": "Si l'edge est réel, le momentum reste profitable sur données out-of-sample jamais vues, et sur la majorité des sous-périodes (pas seulement grâce à une grande tendance unique).",
+    "criteres_echec": {
+      "profit_factor_min": 1.2,
+      "coherence_min": 60.0,
+      "doit_persister_sur_test_set": true
+    },
+    "donnees_test": "20% les plus récents de GC=F daily, verrouillés",
+    "date_creation": "2026-08-23T20:26:49.555905+00:00",
+    "statut": "REJETEE"
+  },
+  {
+    "id": "btc_momentum_ma_cross",
+    "nom": "Momentum croisement MM 20/50 sur BTC daily",
+    "raison": "Même logique de persistance des tendances. ATTENTION: BTC a connu une tendance haussière séculaire massive sur la période — le test doit déterminer si l'edge survit sur les sous-périodes baissières/latérales, ou s'il n'est qu'un artefact du bull run.",
+    "prediction": "Si c'est un vrai edge et pas un artefact, le momentum doit être profitable même sur les sous-périodes SANS tendance haussière forte.",
+    "criteres_echec": {
+      "profit_factor_min": 1.2,
+      "coherence_min": 60.0,
+      "doit_persister_sur_test_set": true
+    },
+    "donnees_test": "20% les plus récents de BTC-USD daily, verrouillés",
+    "date_creation": "2026-08-23T20:26:54.155273+00:00",
+    "statut": "REJETEE"
+  },
+  {
+    "id": "eurusd_turtle_soup_rr1",
+    "nom": "Turtle Soup (faux breakout) EUR/USD daily, RR 1:1",
+    "raison": "Les faux breakouts au-dessus/dessous de plus hauts/bas évidents correspondent à des chasses aux stops par les gros acteurs (poches de liquidité). Après le balayage des stops, le prix revient — mécanisme de microstructure réel.",
+    "prediction": "Si l'edge est réel, il persiste out-of-sample et reste positif sur des paramètres voisins (lookback et RR proches).",
+    "criteres_echec": {
+      "profit_factor_min": 1.2,
+      "coherence_min": 60.0,
+      "doit_persister_sur_test_set": true
+    },
+    "donnees_test": "20% les plus récents d'EUR/USD daily, verrouillés",
+    "date_creation": "2026-08-23T21:52:12.762000+00:00",
+    "statut": "REJETEE"
+  },
+  {
+    "id": "xauusd_turtle_soup_rr2",
+    "nom": "Turtle Soup (faux breakout) or daily, RR 1:2",
+    "raison": "Les faux breakouts au-dessus/dessous de plus hauts/bas évidents correspondent à des chasses aux stops par les gros acteurs (poches de liquidité). Après le balayage des stops, le prix revient — mécanisme de microstructure réel.",
+    "prediction": "Si l'edge est réel, il persiste out-of-sample et reste positif sur des paramètres voisins (lookback et RR proches).",
+    "criteres_echec": {
+      "profit_factor_min": 1.2,
+      "coherence_min": 60.0,
+      "doit_persister_sur_test_set": true
+    },
+    "donnees_test": "20% les plus récents de GC=F daily, verrouillés",
+    "date_creation": "2026-08-23T21:52:13.493072+00:00",
+    "statut": "REJETEE"
   }
 ]

@@ -30,6 +30,7 @@ class RiskManager(BaseAgent):
         self._daily_pnl_reset_date = datetime.now(timezone.utc).date()
         self._blacked_out: set[str] = set()
         self._kill_switch_active = False
+        self._macro_regime = "calme"   # défaut prudent avant le premier "macro.state"
 
     async def setup(self) -> None:
         self.bus.subscribe("signal.new", self._on_signal)
@@ -37,9 +38,16 @@ class RiskManager(BaseAgent):
         self.bus.subscribe("trade.failed", self._on_trade_failed)
         self.bus.subscribe("trade.closed", self._on_trade_closed)
         self.bus.subscribe("news.blackout", self._on_blackout)
+        self.bus.subscribe("macro.state", self._on_macro_state)
 
     async def _on_blackout(self, msg: Message) -> None:
         self._blacked_out.add(msg.payload["key"])
+
+    async def _on_macro_state(self, msg: Message) -> None:
+        new_regime = msg.payload["regime"]
+        if new_regime != self._macro_regime:
+            self.logger.info(f"Changement de régime macro: '{self._macro_regime}' -> '{new_regime}'")
+        self._macro_regime = new_regime
 
     async def _on_signal(self, msg: Message) -> None:
         self._maybe_reset_daily_pnl()
@@ -57,6 +65,7 @@ class RiskManager(BaseAgent):
             return
 
         size = compute_position_size(msg.payload, self.capital, self.config)
+        size = self._apply_macro_risk_reduction(size)
         stop_loss, take_profit = compute_stops(msg.payload, side, self.config)
 
         self._open_positions[symbol] = {
@@ -75,6 +84,9 @@ class RiskManager(BaseAgent):
         if symbol in self._blacked_out:
             return f"Symbole {symbol} en blackout news"
 
+        if self._macro_regime == "stress" and self.config.halt_on_stress_regime:
+            return "Régime macro en stress — nouvelles positions suspendues (halt_on_stress_regime)"
+
         if len(self._open_positions) >= self.config.max_concurrent_positions:
             return "Nombre max de positions concurrentes atteint"
 
@@ -86,6 +98,26 @@ class RiskManager(BaseAgent):
             return f"Exposition max sur {symbol} déjà atteinte ({exposure_pct:.1f}%)"
 
         return None
+
+    def _apply_macro_risk_reduction(self, size: float) -> float:
+        """Le régime macro ne rend JAMAIS le sizing plus agressif — au pire
+        neutre (régime "calme"), sinon toujours plus prudent. C'est une
+        couche défensive pure: elle ne sert jamais à augmenter la taille
+        d'une position, seulement à la réduire."""
+        if self._macro_regime == "stress":
+            factor = self.config.stress_regime_size_factor
+        elif self._macro_regime == "prudence":
+            factor = self.config.prudence_regime_size_factor
+        else:
+            factor = 1.0
+
+        reduced = round(size * factor, 6)
+        if factor < 1.0:
+            self.logger.info(
+                f"Réduction de taille due au régime macro '{self._macro_regime}': "
+                f"{size:.6f} -> {reduced:.6f} (facteur {factor})"
+            )
+        return reduced
 
     def _current_exposure_pct(self, symbol: str) -> float:
         total = sum(p["size"] * p["entry_price"] for p in self._open_positions.values())

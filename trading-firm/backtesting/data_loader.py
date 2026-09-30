@@ -15,6 +15,10 @@ YFINANCE_TICKERS = {
     "AAPL": "AAPL",
     "TSLA": "TSLA",
     "XAU/USD": "GC=F",
+    "XAG/USD": "SI=F",
+    "EUR/CHF": "EURCHF=X",
+    "EUR/GBP": "EURGBP=X",
+    "AUD/NZD": "AUDNZD=X",
 }
 
 

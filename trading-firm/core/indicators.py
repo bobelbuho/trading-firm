@@ -38,6 +38,10 @@ def volatility(bars: list[dict], period: int = 20) -> float:
     return variance ** 0.5
 
 
+def _true_range(high: float, low: float, prev_close: float) -> float:
+    return max(high - low, abs(high - prev_close), abs(low - prev_close))
+
+
 def compute_adx(bars: list[dict], period: int = 14) -> float | None:
     """ADX de Wilder — force de la tendance, indépendamment de sa direction.
 
@@ -53,7 +57,7 @@ def compute_adx(bars: list[dict], period: int = 14) -> float | None:
         high, low = bars[i]["high"], bars[i]["low"]
         prev_high, prev_low, prev_close = bars[i - 1]["high"], bars[i - 1]["low"], bars[i - 1]["close"]
 
-        tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+        tr = _true_range(high, low, prev_close)
         up_move = high - prev_high
         down_move = prev_low - low
 
@@ -92,6 +96,37 @@ def compute_adx(bars: list[dict], period: int = 14) -> float | None:
         adx = (adx * (period - 1) + dx) / period
 
     return adx
+
+
+def atr(bars: list[dict], period: int = 20) -> float | None:
+    """Average True Range de Wilder — amplitude moyenne de bougie en unités
+    de PRIX (contrairement à volatility(), qui est un écart-type des
+    clôtures). Réutilise _true_range — même calcul que compute_adx, pas un
+    second calcul indépendant.
+
+    Attention: ce n'est PAS la même forme de lissage que le TR interne de
+    compute_adx. Là-bas, le TR lissé reste une "somme glissante" non divisée
+    (technique originale de Wilder pour les ratios +DI/-DI, où la mise à
+    l'échelle s'annule). Ici, atr() doit retourner une vraie moyenne en
+    unités de prix directement utilisable (ex. comme N dans Turtle) — donc
+    chaque nouvelle valeur est divisée par period: atr_t = atr_{t-1} +
+    (tr_t - atr_{t-1}) / period, amorcé par une moyenne simple des
+    `period` premiers TR.
+
+    Nécessite au moins period+1 bougies.
+    """
+    if len(bars) < period + 1:
+        return None
+
+    trs = [
+        _true_range(bars[i]["high"], bars[i]["low"], bars[i - 1]["close"])
+        for i in range(1, len(bars))
+    ]
+
+    value = sum(trs[:period]) / period
+    for tr in trs[period:]:
+        value += (tr - value) / period
+    return value
 
 
 def compute_indicators(bars: list[dict]) -> dict:

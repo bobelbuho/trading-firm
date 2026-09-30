@@ -5,12 +5,13 @@ tester la robustesse paramétrique ou temporelle d'un signal qui n'existe
 même pas en in-sample — chaque étape suivante suppose que les précédentes
 sont vraies.
 
-Réutilise entièrement backtesting.engine.BacktestEngine (donc
-core/indicators.py, core/strategy_logic.py, core/risk_logic.py) et le
-découpage en fenêtres déjà écrit dans backtesting/validation.py — ce module
-n'ajoute AUCUNE logique de signal ou de risque, seulement l'orchestration
-et la discipline de découverte du edge (train uniquement jusqu'au stage 2,
-puis un seul regard sur le test set).
+Réutilise entièrement un moteur de backtest (BacktestEngine par défaut, ou
+tout autre moteur partageant la même convention de constructeur — voir
+`engine_class`, ex. MomentumBacktestEngine) et le découpage en fenêtres déjà
+écrit dans backtesting/validation.py — ce module n'ajoute AUCUNE logique de
+signal ou de risque, seulement l'orchestration et la discipline de
+découverte du edge (train uniquement jusqu'au stage 2, puis un seul regard
+sur le test set).
 """
 
 from dataclasses import dataclass
@@ -65,6 +66,8 @@ class ValidationPipeline:
         spread_cost_pct: float = 0.0002,
         param_variations: list[dict] | None = None,
         window_days: int = 15,
+        engine_class: type = BacktestEngine,
+        strategy_params: dict | None = None,
     ) -> ValidationReport:
         if not hypothesis.is_complete():
             raise ValueError(f"Hypothèse '{hypothesis.id}' incomplète — impossible de la valider.")
@@ -72,6 +75,7 @@ class ValidationPipeline:
             raise ValueError("data_split.split(...) doit être appelé avant validate().")
 
         param_variations = param_variations or []
+        strategy_params = strategy_params or {}
         self.log.log("VALIDATION_STARTED", hypothesis.id, {})
         outcomes: list[StageOutcome] = []
 
@@ -86,7 +90,7 @@ class ValidationPipeline:
             return ValidationReport(hypothesis.id, False, name, outcomes, Statut.REJETEE, raison)
 
         # --- Stage 1: le signal existe-t-il en in-sample (train) ? ---
-        engine = BacktestEngine(risk_config, starting_capital, spread_cost_pct)
+        engine = engine_class(risk_config, starting_capital, spread_cost_pct, **strategy_params)
         result_in_sample = engine.run(data_split.train_data)
         passed, metrics, message = stages.stage_in_sample(hypothesis, result_in_sample)
         record("in_sample", passed, metrics, message)
@@ -112,14 +116,17 @@ class ValidationPipeline:
             return stopped("param_robustness", metrics, message)
 
         # --- Stage 4: cohérence multi-fenêtres (train uniquement) ---
-        result_windows = self._run_windows(data_split.train_data, risk_config, starting_capital, spread_cost_pct, window_days)
+        result_windows = self._run_windows(
+            data_split.train_data, risk_config, starting_capital, spread_cost_pct, window_days,
+            engine_class, strategy_params,
+        )
         passed, metrics, message = stages.stage_temporal_robustness(hypothesis, result_windows)
         record("temporal_robustness", passed, metrics, message)
         if not passed:
             return stopped("temporal_robustness", metrics, message)
 
         # --- Stage 5: survie aux coûts de transaction (train, avec vs sans spread) ---
-        result_zero_spread = BacktestEngine(risk_config, starting_capital, 0.0).run(data_split.train_data)
+        result_zero_spread = engine_class(risk_config, starting_capital, 0.0, **strategy_params).run(data_split.train_data)
         passed, metrics, message = stages.stage_cost_survival(hypothesis, result_in_sample, result_zero_spread)
         record("cost_survival", passed, metrics, message)
         if not passed:
@@ -128,7 +135,7 @@ class ValidationPipeline:
         # --- Stage 6: résistance aux scénarios de stress (train uniquement) ---
         # Exécuté en dernier: pas la peine de stresser un signal qui n'a même
         # pas prouvé d'edge statistique aux 5 stages précédents.
-        passed, metrics, message = stages.stage_stress_survival(hypothesis, engine, data_split.train_data)
+        passed, metrics, message = stages.stage_stress_survival(hypothesis, engine, data_split.train_data, strategy_params)
         record("stress_survival", passed, metrics, message)
         if not passed:
             return stopped("stress_survival", metrics, message)
@@ -140,8 +147,9 @@ class ValidationPipeline:
     def _run_windows(
         price_series: dict[str, list[dict]], risk_config: RiskConfig,
         starting_capital: float, spread_cost_pct: float, window_days: int,
+        engine_class: type = BacktestEngine, strategy_params: dict | None = None,
     ) -> list[BacktestResult]:
-        engine = BacktestEngine(risk_config, starting_capital, spread_cost_pct)
+        engine = engine_class(risk_config, starting_capital, spread_cost_pct, **(strategy_params or {}))
         results = []
         for symbol, bars in price_series.items():
             for start, end in walk_forward._make_windows(bars, window_days):

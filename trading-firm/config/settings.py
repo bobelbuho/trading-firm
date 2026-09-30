@@ -23,6 +23,14 @@ class RiskConfig:
     news_blackout_minutes_before: int = 15
     news_blackout_minutes_after: int = 15
 
+    # --- Couche macro défensive (agents/macro_agent.py) ---
+    # Principe: le régime macro ne rend JAMAIS le RiskManager plus agressif,
+    # seulement plus prudent (ou neutre en régime "calme"). Ces réglages ne
+    # servent qu'à réduire ou bloquer, jamais à augmenter le risque pris.
+    halt_on_stress_regime: bool = True          # bloque toute nouvelle position en régime "stress"
+    stress_regime_size_factor: float = 0.5      # sinon (halt désactivé), facteur appliqué à la taille en "stress"
+    prudence_regime_size_factor: float = 0.75   # facteur appliqué à la taille en régime "prudence"
+
 
 @dataclass
 class MarketConfig:

@@ -6,8 +6,11 @@ in-sample.
 
 Toutes les fonctions retournent (passed: bool, metrics: dict, message: str)
 et ne réimplémentent RIEN: elles consomment des BacktestResult déjà produits
-par backtesting.engine.BacktestEngine, qui réutilise lui-même
-core/indicators.py, core/strategy_logic.py et core/risk_logic.py.
+par un moteur de backtest (BacktestEngine pour le mean reversion,
+MomentumBacktestEngine pour le suivi de tendance...) — stage_param_robustness
+et stage_stress_survival utilisent type(engine) pour rester agnostiques au
+moteur exact, à condition qu'il partage la même convention de constructeur
+(config, starting_capital, spread_cost_pct, **params_stratégie).
 """
 
 from backtesting.engine import BacktestEngine, BacktestResult
@@ -87,8 +90,11 @@ def stage_param_robustness(
     servi à le découvrir, c'est le symptôme classique du surajustement."""
     baseline_pf = engine.run(price_series).profit_factor
 
+    # type(engine) plutôt que BacktestEngine en dur: permet de réutiliser ce
+    # stage tel quel pour n'importe quel moteur partageant la même convention
+    # de constructeur (ex. MomentumBacktestEngine avec fast_period/slow_period).
     variation_pfs = [
-        BacktestEngine(engine.config, engine.starting_capital, engine.spread_cost_pct, **params)
+        type(engine)(engine.config, engine.starting_capital, engine.spread_cost_pct, **params)
         .run(price_series).profit_factor
         for params in param_variations
     ]
@@ -170,6 +176,7 @@ def stage_cost_survival(
 
 def stage_stress_survival(
     hypothesis: Hypothesis, engine: BacktestEngine, price_series: dict[str, list[dict]],
+    strategy_params: dict | None = None,
 ) -> tuple[bool, dict, str]:
     """6e stage, exécuté APRÈS les 5 précédents: la stratégie a déjà prouvé
     qu'elle a un edge statistique — reste à vérifier qu'elle SURVIT à des
@@ -179,7 +186,7 @@ def stage_stress_survival(
     plausible, pas sur son rendement moyen. Pas la peine de stress-tester un
     signal qui n'a même pas d'edge — d'où sa place en dernier."""
     threshold = hypothesis.criteres_echec.get("max_stress_drawdown_pct", DEFAULT_MAX_DRAWDOWN_THRESHOLD_PCT)
-    tester = StressTester(max_drawdown_threshold_pct=threshold)
+    tester = StressTester(max_drawdown_threshold_pct=threshold, engine_class=type(engine), strategy_params=strategy_params)
     report = tester.run_all_scenarios(price_series, engine.config, engine.starting_capital, engine.spread_cost_pct)
 
     passed = report.survived()

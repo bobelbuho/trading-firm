@@ -19,6 +19,7 @@ import os
 from dotenv import load_dotenv
 
 from core.message_bus import MessageBus
+from agents.macro_agent import MacroAgent
 from agents.market_data_agent import MarketDataAgent
 from agents.news_agent import NewsAgent
 from agents.strategy_agent import StrategyAgent
@@ -89,19 +90,25 @@ async def main() -> None:
     portfolio_manager = PortfolioManager(bus, config.starting_capital)
     supervisor = Supervisor(bus)
     validation_agent = ValidationAgent(bus, config.risk, config.starting_capital)
+    macro_agent = MacroAgent(
+        bus,
+        blackout_before_min=config.risk.news_blackout_minutes_before,
+        blackout_after_min=config.risk.news_blackout_minutes_after,
+    )
 
     agents = [
-        supervisor, portfolio_manager, risk_manager, validation_agent,
+        supervisor, portfolio_manager, risk_manager, validation_agent, macro_agent,
         strategy_agent, news_agent, execution_agent, market_data_agent,
     ]
 
     for agent in agents:
         await agent.start()
 
-    # Les agents "producteurs" (market data, news) tournent en continu
+    # Les agents "producteurs" (market data, news, macro) tournent en continu
     await asyncio.gather(
         market_data_agent.run(),
         news_agent.run(),
+        macro_agent.run(),
     )
 
 
