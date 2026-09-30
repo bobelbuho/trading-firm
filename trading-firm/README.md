@@ -3,7 +3,7 @@
 Une "firme" de trading où chaque fonction (analyse marché, news, stratégie,
 risque, exécution, portefeuille) est un agent indépendant qui communique
 via un bus de messages — comme une équipe où chaque spécialiste fait
-son travail et transmet l'info au suivant.
+son travail et transmet l'info au suivante.
 
 ## Architecture
 
